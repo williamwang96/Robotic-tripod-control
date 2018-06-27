@@ -16,11 +16,12 @@ b1, b2, b3 = np.array([1, 0, 0]), np.array([0, 1, 0]), np.array([0, 0, 1])
 
 
 def get_kite_angles(xpos, ypos):
-	'''Given the kite's x,y coordinates in the photo, return its true theta, phi angles in degrees
+	'''Given the kite's x,y coordinates in the photo, return its real theta and phi angles in radians (in this order)  in a np array
 	Input xpos and ypos are based on origin as top left of the photo
 	Assume xpos is horizontal, right positive
 	and ypos is vertical, down positive in the photo
-	This function treats left as x positive and up as y positive in the photo	
+	This function treats left as x positive and up as y positive in the photo
+	In reality coor. system, front facing kite has theta = 90 (top down angle) and phi = 0 (horizontal angle) (reverse theta phi definition wrt this func)	
 	'''
 
 	# calculate theta and phi in the photo with respect to (wrt) the center of the photo
@@ -44,12 +45,11 @@ def get_kite_angles(xpos, ypos):
 	kite_real_cartesian = np.matmul(photo_basis, kite_photo_cartesian)
 	# transform to spherical coor. to get theta and phi
 	kite_real_theta = math.atan(kite_real_cartesian[1] / kite_real_cartesian[0])
-	kite_real_theta = math.degrees(kite_real_theta)
 	kite_real_phi = math.sqrt(kite_real_cartesian[0] ** 2 + kite_real_cartesian[1] ** 2) / kite_real_cartesian[2]
 	kite_real_phi = math.atan(kite_real_phi)
-	kite_real_phi = math.degrees(kite_real_phi)
 
-	theta_phi = np.array([kite_real_theta, kite_real_phi])
+	theta_phi = np.array([kite_real_phi, kite_real_theta])
+	return theta_phi
 
 
 def get_robo_tripod_angles():
