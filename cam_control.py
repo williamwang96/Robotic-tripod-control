@@ -1,5 +1,4 @@
 from ximea import xiapi
-from PIL import Image
 import cv2
 import threading
 import time
@@ -7,11 +6,17 @@ import os
 import datetime
 
 expo = 10 # initial exposure time for camera, in milisec, used in adjusting expo time
-image_saving_abspath = 'C:/Users/William/Documents/project kite/photo/'
 
+# photo saving path, both relative and absolute ones work
+# if path not exist, will create it
+image_saving_path = '../photo/'
+#image_saving_path = 'C:/Users/William/Documents/project kite/photo/'
 
 
 def cam_close(cam):
+    '''
+    Perform closing of the camera
+    '''
 
     cv2.destroyAllWindows()
 
@@ -51,10 +56,16 @@ def cam_exposure():
         # when done is entered, closing camera force quites video stream, causing an exception
         print('Done.')
 
-def cam_video(cam, mode):
+def cam_video(cam, mode, vfps=10, pfps=25, fp=image_saving_path):
     '''
     Start live video of the given camera
-    Exits on CTRL+C
+    Mode 0 is live video only
+    Mode 1 starts to save photos
+    video fps is unrestricted in mode 0
+    vfps is used to set video fps, only effective in mode 1
+    default vfps is 10
+    pfps sets photo saving rate
+    fp sets photo saving path in mode 1
     '''
     img = xiapi.Image()
     try:
@@ -63,7 +74,7 @@ def cam_video(cam, mode):
             print('\nPress CTRL+C to enter new exposure time or finish adjusting.\n')
         elif mode == 1:
             print('\nPress CTRL+C to quit')
-            t_save = threading.Thread(target=cam_save, args=(cam, ))
+            t_save = threading.Thread(target=cam_save, args=(cam, pfps, fp, ))
             t_save.start()
         else:
             print('Invalid init param')
@@ -71,8 +82,6 @@ def cam_video(cam, mode):
             # if taking photos, limit video fps
             if mode == 1:
                 t0 = time.time()
-                while time.time()-t0 < 0.1:
-                    pass
             
             #get data and pass them from camera to img
             cam.get_image(img)
@@ -81,9 +90,16 @@ def cam_video(cam, mode):
             #determined by imgdataformat
             data = img.get_image_data_numpy()
 
-            cv2.imshow('Camera Live Feed', data)
-
+            # resize the display
+            dim = (int(data.shape[1]/3), int(data.shape[0]/3))
+            resized = cv2.resize(data, dim, interpolation=cv2.INTER_AREA)
+            
+            cv2.imshow('Camera Live Feed', resized)
             cv2.waitKey(1)
+
+            if mode == 1:
+                while time.time()-t0 < 1/vfps:
+                    pass
             
     except KeyboardInterrupt:
         cam_close(cam)
@@ -92,7 +108,7 @@ def cam_video(cam, mode):
         # When camera is not closed by this func, exception occurs
         print('Done.')
 
-def cam_setup(expo):
+def cam_setup(expo=10):
     '''
     This function receives exposure time in milisec and sets up the camera ready for live feed
     '''
@@ -105,10 +121,8 @@ def cam_setup(expo):
     cam.open_device()
 
     #settings
-    cam.set_imgdataformat('XI_RGB24') # TODO which format do we want to use?
+    cam.set_imgdataformat('XI_RGB24')
     cam.set_exposure(expo * 1000)
-    # want 25fps, maybe frame rate mode?
-    # do we need 40ms or less exposure time?
     print('\nExposure was set to %i us' %cam.get_exposure())
     
     #start data acquisition
@@ -117,17 +131,17 @@ def cam_setup(expo):
 
     return cam
 
-def cam_save(cam):
+def cam_save(cam, fps=25, fp=image_saving_path):
     '''
-    This function saves photo every 40ms
+    This function saves photo at most 40ms
     '''
     curr = 0
 
     print('\nReady... start taking photos')
 
     try:
-        if not os.path.exists(os.path.dirname(image_saving_abspath)):
-            os.makedirs(os.path.dirname(image_saving_abspath))
+        if not os.path.exists(os.path.dirname(image_saving_path)):
+            os.makedirs(os.path.dirname(image_saving_path))
         while True:
             t0 = time.time()
             #print(curr)
@@ -135,27 +149,30 @@ def cam_save(cam):
             # get data from camera and ready for storing
             img = xiapi.Image()
             cam.get_image(img)
+            t1 = time.time()
             data = img.get_image_data_numpy(invert_rgb_order=True)
-            #img = Image.fromarray(data, 'RGB')
-            t_get = time.time() - t0
+            t2 = time.time()
 
             # generate filename
             filename = ("img%d_%s.bmp" % (curr, str(datetime.datetime.now()).split('.')[0].replace(" ",'-').replace(":",'-')))
 
-            '''
-            while((time.time()-t0)*1000 < 20):
-                # wait until 40ms passes
-                pass        
-            '''
-
             # save image
-            cv2.imwrite(image_saving_abspath+filename, data)
-            curr += 1            
+            cv2.imwrite(image_saving_path+filename, data)
+            t3 = time.time()
+            curr += 1    
 
-            t_save = time.time() - t0 - t_get
-            print(str(t_get*1000) + ' ' + str(t_save*1000))
+            t3 = t3 - t2
+            t2 = t2 - t1
+            t1 = t1 - t0 
 
+            print(str(int(t1*1000000)) + ' ' 
+                    + str(int(t2*1000000)) + ' '
+                    + str(int(t3*1000000)) + ' ' 
+                    )
 
+            while time.time()-t0 < 1/fps:
+                # if not yet 40ms, wait
+                pass        
 
     except KeyboardInterrupt:
         cam_close(cam)
@@ -221,31 +238,8 @@ if __name__ == '__main__':
     #cam_exposure(cam)
     cam_exposure()
 
-def stm():
-
-    # TODO 
-    # change to live video
-    # save one image every 40ms
-    for i in range(10):
-        # TODO
-        # add timer for 40ms
-
-        #get data and pass them from camera to img
-        cam.get_image(img)
-
-        #create numpy array with data from camera. Dimensions of array are determined
-        #by imgdataformat
-        #NOTE: PIL takes RGB bytes in opposite order, so invert_rgb_order is True
-        data = img.get_image_data_numpy(invert_rgb_order=True)
-
-        # TODO
-        # add specific path for saving
-        # use image_path variable and glob
-        img = PIL.Image.fromarray(data, 'RGB') 
-        img.save('xi_example.bmp')
-
-        # TODO
-        # keyboard control for start taking photos
-        # pause taking photos
-        # exit program
+# TODO, currently provided by WIN10 console feature
+# keyboard control for start taking photos
+# pause taking photos
+# exit program
 
