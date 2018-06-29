@@ -3,9 +3,11 @@ from PIL import Image
 import cv2
 import threading
 import time
+import os
+import datetime
 
-expo = 10 # initial exposure time for camera, used in adjusting expo time
-image_path
+expo = 10 # initial exposure time for camera, in milisec, used in adjusting expo time
+image_saving_abspath = 'C:/Users/William/Documents/project kite/photo/'
 
 
 
@@ -30,12 +32,12 @@ def cam_exposure():
     global expo
     try:
         while True:
-            cam = cam_setup(expo * 1000)
-            cam_video(cam)
-            expo_temp = input('Enter exposure time (in miliseconds): ')
+            cam = cam_setup(expo)
+            cam_video(cam, 0)
+            expo_temp = input('Enter exposure time (in milisec) or done adjusting: ')
             if not expo_temp.isnumeric():
                 if expo_temp.lower() == 'done':
-                    break
+                    return expo
                 else:
                     print('Numbers only')
                     pass
@@ -49,7 +51,7 @@ def cam_exposure():
         # when done is entered, closing camera force quites video stream, causing an exception
         print('Done.')
 
-def cam_video(cam):
+def cam_video(cam, mode):
     '''
     Start live video of the given camera
     Exits on CTRL+C
@@ -57,9 +59,21 @@ def cam_video(cam):
     img = xiapi.Image()
     try:
         print('Starting live transmission...')
-        print('\nPress CTRL+C to enter new exposure time.\n')
+        if mode == 0: 
+            print('\nPress CTRL+C to enter new exposure time or finish adjusting.\n')
+        elif mode == 1:
+            print('\nPress CTRL+C to quit')
+            t_save = threading.Thread(target=cam_save, args=(cam, ))
+            t_save.start()
+        else:
+            print('Invalid init param')
         while True:
-            t0 = time.time()
+            # if taking photos, limit video fps
+            if mode == 1:
+                t0 = time.time()
+                while time.time()-t0 < 0.1:
+                    pass
+            
             #get data and pass them from camera to img
             cam.get_image(img)
 
@@ -67,11 +81,6 @@ def cam_video(cam):
             #determined by imgdataformat
             data = img.get_image_data_numpy()
 
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            text = '{:5.5f}'.format((time.time() - t0)*1000)
-            cv2.putText(
-                data, text, (900,150), font, 4, (255, 255, 255), 2
-                )            
             cv2.imshow('Camera Live Feed', data)
 
             cv2.waitKey(1)
@@ -85,7 +94,7 @@ def cam_video(cam):
 
 def cam_setup(expo):
     '''
-    This function receives exposure time and sets up the camera ready for live feed
+    This function receives exposure time in milisec and sets up the camera ready for live feed
     '''
   
     #create instance for the connected camera
@@ -97,7 +106,7 @@ def cam_setup(expo):
 
     #settings
     cam.set_imgdataformat('XI_RGB24') # TODO which format do we want to use?
-    cam.set_exposure(expo) # in milliseconds
+    cam.set_exposure(expo * 1000)
     # want 25fps, maybe frame rate mode?
     # do we need 40ms or less exposure time?
     print('\nExposure was set to %i us' %cam.get_exposure())
@@ -109,7 +118,49 @@ def cam_setup(expo):
     return cam
 
 def cam_save(cam):
-    pass
+    '''
+    This function saves photo every 40ms
+    '''
+    curr = 0
+
+    print('\nReady... start taking photos')
+
+    try:
+        if not os.path.exists(os.path.dirname(image_saving_abspath)):
+            os.makedirs(os.path.dirname(image_saving_abspath))
+        while True:
+            t0 = time.time()
+            #print(curr)
+
+            # get data from camera and ready for storing
+            img = xiapi.Image()
+            cam.get_image(img)
+            data = img.get_image_data_numpy(invert_rgb_order=True)
+            #img = Image.fromarray(data, 'RGB')
+            t_get = time.time() - t0
+
+            # generate filename
+            filename = ("img%d_%s.bmp" % (curr, str(datetime.datetime.now()).split('.')[0].replace(" ",'-').replace(":",'-')))
+
+            '''
+            while((time.time()-t0)*1000 < 20):
+                # wait until 40ms passes
+                pass        
+            '''
+
+            # save image
+            cv2.imwrite(image_saving_abspath+filename, data)
+            curr += 1            
+
+            t_save = time.time() - t0 - t_get
+            print(str(t_get*1000) + ' ' + str(t_save*1000))
+
+
+
+    except KeyboardInterrupt:
+        cam_close(cam)
+
+
 
 def example(expo):
     #create instance for first connected camera 
