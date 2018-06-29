@@ -5,12 +5,12 @@ import time
 import os
 import datetime
 
-expo = 10 # initial exposure time for camera, in milisec, used in adjusting expo time
-
-# photo saving path, both relative and absolute ones work
-# if path not exist, will create it
-image_saving_path = '../photo/'
+########################## Variables for Adjusting #################################
+image_saving_path = '../photo/'  # photo saving path, default is '../photo', both relative and absolute work
 #image_saving_path = 'C:/Users/William/Documents/project kite/photo/'
+vfps = 10  # video fps, default is 10
+pfps = 25  # photo saving rate, default is 25
+expo = 10 # starting exposure time, in milisec
 
 
 def cam_close(cam):
@@ -42,10 +42,10 @@ def cam_exposure():
             expo_temp = input('Enter exposure time (in milisec) or done adjusting: ')
             if not expo_temp.isnumeric():
                 if expo_temp.lower() == 'done':
-                    return expo
+                    break
                 else:
                     print('Numbers only')
-                    pass
+                    continue
             expo = int(expo_temp)
 
 
@@ -177,66 +177,21 @@ def cam_save(cam, fps=25, fp=image_saving_path):
     except KeyboardInterrupt:
         cam_close(cam)
 
+def main():
+    global expo
 
-
-def example(expo):
-    #create instance for first connected camera 
-    cam = xiapi.Camera()
-
-    #start communication
-    print('Opening first camera...')
-    cam.open_device()
-
-    #settings
-    cam.set_exposure(expo)
-    cam.set_imgdataformat('XI_RGB24') # TODO which format do we want to use?
-
-
-    #create instance of Image to store image data and metadata
-    img = xiapi.Image()
-
-    #start data acquisition
-    print('Starting data acquisition...')
-    cam.start_acquisition()
-
-    try:
-        print('Starting video. Press CTRL+C to exit.')
-        t0 = time.time()
-        while True:
-            #get data and pass them from camera to img
-            cam.get_image(img)
-
-            #create numpy array with data from camera. Dimensions of the array are 
-            #determined by imgdataformat
-            data = img.get_image_data_numpy()
-
-            #show acquired image with time since the beginning of acquisition
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            text = '{:5.2f}'.format(time.time()-t0)
-            cv2.putText(
-                data, text, (900,150), font, 4, (255, 255, 255), 2
-                )
-            cv2.imshow('XiCAM example', data)
-
-            cv2.waitKey(1)
-            
-    except KeyboardInterrupt:
-        cv2.destroyAllWindows()
-
-    #stop data acquisition
-    print('Stopping acquisition...')
-    cam.stop_acquisition()
-
-    #stop communication
-    cam.close_device()
-
-    print('Done.')
-    
-if __name__ == '__main__':
-    #cam = cam_setup()
-    #cam_video(cam)
-    #cam_exposure(cam)
+    # Start the camera for adjusting exposure time
     cam_exposure()
+
+    # Ready the camera for correct exposure time in milisec
+    cam = cam_setup(expo)
+    
+    # Start live video feed and ready for photo taking
+    cam_video(cam, 1, vfps=vfps, pfps=pfps, fp=image_saving_path)
+
+
+if __name__ == '__main__':
+    main()
 
 # TODO, currently provided by WIN10 console feature
 # keyboard control for start taking photos

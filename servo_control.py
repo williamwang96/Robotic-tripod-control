@@ -2,102 +2,117 @@ import serial
 import time
 import pygame
 import sys
-
 import pygame
 
+########################## Variables for Adjusting #################################
+port = 'COM3'
+baudrate = 19200  # default is 19200
+timeout = 1.5  # default is 1.5
+
 def manual_tracking():
+    print('running')
+    pygame.init()
 
-	pygame.init()
+    window = pygame.display.set_mode((500,300))
 
-	window = pygame.display.set_mode((800,600))
+    pygame.display.set_caption("Robo Tripod Control")
 
-	pygame.display.set_caption("Window")
+    black = (0,0,0)
+    white=(255,255,255)
+    x,y = 225,125
+    moveX,moveY=0,0
 
-	black = (0,0,0)
-	white=(255,255,255)
+    clock = pygame.time.Clock()
 
-	x,y=0,0
+    while True:
+        for event in pygame.event.get():
 
-	moveX,moveY=0,0
+            if (event.type==pygame.QUIT):
+            	exit()
 
-	clock = pygame.time.Clock()
+            if (event.type==pygame.KEYDOWN):
+                if (event.key==pygame.K_LEFT):
+                    print('left')
+                    moveX = -5
+                if (event.key==pygame.K_RIGHT):
+                    print('right')
+                    moveX = 5
+                if (event.key==pygame.K_UP):
+                    print('up')
+                    moveY = -5
+                if (event.key==pygame.K_DOWN):
+                    print('down')
+                    moveY = 5
 
-	while True:
+            if (event.type==pygame.KEYUP):
+                if (event.key==pygame.K_LEFT):
+                    moveX=0
+                    x,y = 225,125
+                if (event.key==pygame.K_RIGHT):
+                    moveX=0
+                    x,y = 225,125
+                if (event.key==pygame.K_UP):
+                    moveY=0
+                    x,y = 225,125
+                if (event.key==pygame.K_DOWN):
+                    moveY=0
+                    x,y = 225,125
 
-	    for event in pygame.event.get():
+        window.fill(black)
 
-	        if (event.type==pygame.QUIT):
-	        	exit()
+        x += moveX
+        y += moveY
 
-	        if (event.type==pygame.KEYDOWN):
-	            if (event.key==pygame.K_LEFT):
-	                print('left')
-	                moveX = -5
-	            if (event.key==pygame.K_RIGHT):
-	                print('right')
-	                moveX = 5
-	            if (event.key==pygame.K_UP):
-	                moveY = -5
-	            if (event.key==pygame.K_DOWN):
-	                moveY = 5
+        pygame.draw.rect(window,white,(x,y,50,50))
 
-	        if (event.type==pygame.KEYUP):
-	            if (event.key==pygame.K_LEFT):
-	                moveX=0
-	            if (event.key==pygame.K_RIGHT):
-	                moveX=0
-	            if (event.key==pygame.K_UP):
-	                moveY=0
-	            if (event.key==pygame.K_DOWN):
-	                moveY=0
+        clock.tick(50)
 
-	    window.fill(black)
+        pygame.display.flip()
 
-	    x+=moveX
-	    y+=moveY
+    pygame.quit()
 
-	    pygame.draw.rect(window,white,(x,y,50,50))
-
-	    clock.tick(50)
-
-	    pygame.display.flip()
-
-	pygame.quit()
 
 def setup(port, baudrate=19200, timeout=1.5):
-	"""Set up the COM port, open it, and return it"""
-	ser = serial.Serial()
-	ser.port = port
-	ser.baudrate = baudrate
-	ser.timeout = timeout
+    """Set up the COM port, open it, and return it"""
+    ser = serial.Serial()
+    ser.port = port
+    ser.baudrate = baudrate
+    ser.timeout = timeout
 
-	if not ser.isOpen():
-		ser.open()
+    if not ser.isOpen():
+        ser.open()
 
-	print("Waiting for COM port to open...")
-	sleep(3)
+    print("Waiting for COM port to open...")
+    sleep(3)
 
-	if ser:
-		print("\nCOM port opens successfully")
+    if ser:
+        print("\nCOM port opens successfully")
 	
-	return ser
+    return ser
 
 def close(ser):
-	"""close the serial port passed in"""
-	ser.close()
-	print("Tripod control ends\n")
+    """close the serial port passed in"""
+    ser.close()
+    print("Tripod control ends\n")
 
+def main():
+    #servo = sc.setup(port=port, baudrate=baudrate, timeout=timeout)
+    # start new thread for servo control
+    #t_servo = threading.Thread(target=sc.manual_tracking)
+    #t_servo.start()
+
+    #sc.close(servo)
 
 if __name__ == '__main__':
-	manual_tracking()
+    main()
 
 
 
 #TODO
 def auto_tracking(kite_dir, kite_angle, ser):
-	"""Based on current kite position, turn the servo and keep the kite in the picture"""
-	cur_pos = 0 #TODO current position of the camera
-	#TODO send command to control the servo
-	command = bytes([0xAA, kite_dir, kite_angle, cur_pos, 0x55])
-	ser.write(command)
+    """Based on current kite position, turn the servo and keep the kite in the picture"""
+    cur_pos = 0 #TODO current position of the camera
+    #TODO send command to control the servo
+    command = bytes([0xAA, kite_dir, kite_angle, cur_pos, 0x55])
+    ser.write(command)
 		
