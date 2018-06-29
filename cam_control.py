@@ -8,6 +8,7 @@ import datetime
 # Camera model: MQ013CG-E2
 
 ########################## Variables for Adjusting #################################
+# remember to add / to the end of the path if wanting to save in that folder
 image_saving_path = '../photo/'  # photo saving path, default is '../photo', both relative and absolute work
 #image_saving_path = 'C:/Users/William/Documents/project kite/photo/'
 vfps = 3  # video photo showing rate, every 1 in vfps photos shows up
