@@ -5,11 +5,13 @@ import time
 import os
 import datetime
 
+# Camera model: MQ013CG-E2
+
 ########################## Variables for Adjusting #################################
 image_saving_path = '../photo/'  # photo saving path, default is '../photo', both relative and absolute work
 #image_saving_path = 'C:/Users/William/Documents/project kite/photo/'
-vfps = 10  # video fps, default is 10
-pfps = 25  # photo saving rate, default is 25
+vfps = 3  # video photo showing rate, every 1 in vfps photos shows up
+#pfps = 25  # photo saving rate, default is 25
 expo = 10 # starting exposure time, in milisec
 
 
@@ -131,7 +133,7 @@ def cam_setup(expo=10):
 
     return cam
 
-def cam_save(cam, fps=25, fp=image_saving_path):
+def cam_save(cam, fps=3, fp=image_saving_path):
     '''
     This function saves photo at most 40ms
     '''
@@ -150,8 +152,15 @@ def cam_save(cam, fps=25, fp=image_saving_path):
             img = xiapi.Image()
             cam.get_image(img)
             t1 = time.time()
-            data = img.get_image_data_numpy(invert_rgb_order=True)
+            data = img.get_image_data_numpy()
             t2 = time.time()
+
+            # resize the display
+            dim = (int(data.shape[1]/3), int(data.shape[0]/3))
+            resized = cv2.resize(data, dim, interpolation=cv2.INTER_AREA)
+            if curr%fps == 0:
+                cv2.imshow('Camera Live Feed', resized)
+                cv2.waitKey(1)
 
             # generate filename
             filename = ("img%d_%s.bmp" % (curr, str(datetime.datetime.now()).split('.')[0].replace(" ",'-').replace(":",'-')))
@@ -170,9 +179,11 @@ def cam_save(cam, fps=25, fp=image_saving_path):
                     + str(int(t3*1000000)) + ' ' 
                     )
 
+            '''
             while time.time()-t0 < 1/fps:
                 # if not yet 40ms, wait
-                pass        
+                pass
+            '''    
 
     except KeyboardInterrupt:
         cam_close(cam)
@@ -185,9 +196,10 @@ def main():
 
     # Ready the camera for correct exposure time in milisec
     cam = cam_setup(expo)
-    
+
     # Start live video feed and ready for photo taking
-    cam_video(cam, 1, vfps=vfps, pfps=pfps, fp=image_saving_path)
+    cam_save(cam, fps=vfps, fp=image_saving_path)
+    #cam_video(cam, 1, vfps=vfps, pfps=pfps, fp=image_saving_path)
 
 
 if __name__ == '__main__':
