@@ -9,18 +9,26 @@ import numpy as np
 # Camera model: MQ013CG-E2
 
 ########################## Variables for Adjusting #################################
-# remember to add / to the end of the path if wanting to save in that folder
-image_saving_path = '../photo/'  # photo saving path, default is '../photo', both relative and absolute work
-#image_saving_path = 'C:/Users/William/Documents/project kite/photo/'
-vfps = 3  # video photo showing rate, every 1 in vfps photos shows up
-#pfps = 25  # photo saving rate, default is 25
-expo = 10 # starting exposure time, in milisec
 
-def get_key(img_key = np.array((10,10))):
+# photo saving path, default is '../photo', both relative and absolute work
+# remember to add / to the end of the path if wanting to save in that folder
+image_saving_path = '../photo/'  
+#image_saving_path = 'C:/Users/William/Documents/project kite/photo/'
+
+# starting exposure time when adjusting exposure, in milisec
+expo = 10 
+
+
+def get_key(img_key=np.array((0,0))):
+    '''
+    Function for receving keyboard input using opencv
+    '''
     cv2.namedWindow('Camera Control', cv2.WINDOW_NORMAL)
     cv2.resizeWindow('Camera Control', 300, 150)
+    
     cv2.imshow('Camera Control',img_key)
     k=cv2.waitKey(1)
+    
     return k
 
 def cam_close(cam):
@@ -37,7 +45,7 @@ def cam_close(cam):
     #stop communication
     cam.close_device()
 
-    print('Done.\n')
+    print('Camera Closed.')
 
 def cam_live_video_original_resolution(cam):
     '''
@@ -47,6 +55,7 @@ def cam_live_video_original_resolution(cam):
     try:
         print('\nStarting live transmission...')
         print('\nPress CTRL+C to enter new exposure time or finish adjusting.\n')
+
         while True:
             #get data and pass them from camera to img
             cam.get_image(img)
@@ -63,25 +72,29 @@ def cam_live_video_original_resolution(cam):
 
     except xiapi.Xi_error:
         # When camera is not closed by this func, exception occurs
-        print('Done.')
+        print('Camera Closed.')
 
 def cam_adjust_exposure():
     '''
-    Change given camera's exposure time (in miliseconds)
-    When prompt, press enter directly to finish adjusting
+    Function for adjusting exposure time (in miliseconds) when starting the camera
+    When prompt, enter new exposure time or press enter directly to finish adjusting
     '''
     global expo
     try:
         while True:
             cam = cam_setup(expo)
+
             cam_live_video_original_resolution(cam)
+
             expo_temp = input('Enter exposure time (in milisec)\nOr press enter to finish: \n')
+
             if not expo_temp.isnumeric():
-                if expo_temp.lower() == '':
+                if expo_temp == '':
                     break
                 else:
                     print('Numbers only')
                     continue
+
             expo = int(expo_temp)
 
     except EOFError:
@@ -91,7 +104,7 @@ def cam_adjust_exposure():
         pass
 
     finally:
-        print('Done.')
+        print('Camera Closed.')
 
 def cam_setup(expo=10):
     '''
@@ -116,9 +129,16 @@ def cam_setup(expo=10):
 
     return cam
 
-def cam_live_video_and_photo_save(cam, fps=3, fp=image_saving_path):
+def cam_live_video_and_photo_save(cam, refrate=3, res=3, fp=image_saving_path):
     '''
-    This function TODO
+    This function starts low-resolution live video and supports photo saving.
+    Photo saving is controlled by keyboard inputs.
+    Press R to start saving photos. Press P to pause saving. Press B to exit.
+    refrate is the refreshing rate of the live video, taking positive integers, default is 3.
+    Its value means showing one for every refrate photos in live video.
+    res is the resolution of the live video, taking positive integers, default is 3. 
+    Its value means reducing both the original width and height of the photo to 1/res, thus reducing
+    the resolution to 1/res^2.
     '''
     curr = 0
 
@@ -126,20 +146,27 @@ def cam_live_video_and_photo_save(cam, fps=3, fp=image_saving_path):
     print('Press R to start saving photos')
     print('Press P to pause')
     print('Press B to exit')
+
     try:
+        # check whether given filepath exists
+        # if not, create it
         if not os.path.exists(os.path.dirname(image_saving_path)):
             os.makedirs(os.path.dirname(image_saving_path))
         
+        # boolean for deciding whether the camera needs to save photos
         save = False
 
         while True:
             t0 = time.time()
+
+            # keyborad control
             k = get_key()
 
             if k == ord('r'):
                 if not save:
                     save = True
                     print('\nStart saving photos\n')
+
             if k == ord('p'):
                 if save:
                     save = False
@@ -147,6 +174,7 @@ def cam_live_video_and_photo_save(cam, fps=3, fp=image_saving_path):
                     print('Press R to start saving photos')
                     print('Press P to pause')
                     print('Press B to exit')
+
             if k == ord('b'):
                 break
 
@@ -154,17 +182,20 @@ def cam_live_video_and_photo_save(cam, fps=3, fp=image_saving_path):
             img = xiapi.Image()
             cam.get_image(img)
             t1 = time.time()
+
             data = img.get_image_data_numpy()
             t2 = time.time()
             
-            if curr%fps == 0:
-                # resize the display
-                dim = (int(data.shape[1]/3), int(data.shape[0]/3))
+            # live video, showing a new photo every refrate ones
+            if curr%refrate == 0:
+                # resize the display, decrease resolution
+                dim = (int(data.shape[1]/res), int(data.shape[0]/res))
                 resized = cv2.resize(data, dim, interpolation=cv2.INTER_AREA)
                 
                 cv2.imshow('Camera Live Feed', resized)
                 cv2.waitKey(1)
 
+            # photo saving
             if save:
                 # generate filename
                 filename = ("img%d_%s.bmp" % (curr, str(datetime.datetime.now()).split('.')[0].replace(" ",'-').replace(":",'-')))
@@ -177,6 +208,11 @@ def cam_live_video_and_photo_save(cam, fps=3, fp=image_saving_path):
                 t2 = t2 - t1
                 t1 = t1 - t0
 
+                # Three time lengths are in units of microsecs
+                # t1 is data acquisition time
+                # t2 is data format transformation time
+                # t3 is photo saving time
+                # printing shows photo saving is happening
                 print(str(int(t1*1000000)) + '  ' 
                         + str(int(t2*1000000)) + '  '
                         + str(int(t3*1000000)) + '  ' 
