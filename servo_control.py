@@ -82,7 +82,6 @@ def manual_tracking(servo):
 
         key = get_key()
 
-
         if key == ord('a'):
             print('left')
             moveX = -5

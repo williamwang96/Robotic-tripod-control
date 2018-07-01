@@ -35,7 +35,7 @@ def cam_close(cam):
 def cam_exposure():
     '''
     Change given camera's exposure time (in miliseconds)
-    Enter 'done' to finish adjusting
+    When prompt, press enter directly to finish adjusting
     '''
     global expo
     try:
@@ -44,7 +44,7 @@ def cam_exposure():
             cam_video(cam, 0)
             expo_temp = input('Enter exposure time (in milisec) or done adjusting: ')
             if not expo_temp.isnumeric():
-                if expo_temp.lower() == 'done':
+                if expo_temp.lower() == '':
                     break
                 else:
                     print('Numbers only')
@@ -134,7 +134,7 @@ def cam_setup(expo=10):
 
     return cam
 
-def cam_save(cam, fps=3, fp=image_saving_path):
+def cam_save_video_one_thread(cam, fps=3, fp=image_saving_path):
     '''
     This function saves photo at most 40ms
     '''
@@ -189,18 +189,84 @@ def cam_save(cam, fps=3, fp=image_saving_path):
     except KeyboardInterrupt:
         cam_close(cam)
 
+#TODO
+def cam_save_video_separate_threads(cam, fps=3, fp=image_saving_path):
+    '''
+    This function TODO
+    '''
+    curr = 0
+
+    print('\nReady... start taking photos')
+
+    try:
+        if not os.path.exists(os.path.dirname(image_saving_path)):
+            os.makedirs(os.path.dirname(image_saving_path))
+        while True:
+            t0 = time.time()
+            #print(curr)
+
+            # get data from camera and ready for storing
+            img = xiapi.Image()
+            cam.get_image(img)
+            t1 = time.time()
+            data = img.get_image_data_numpy()
+            t2 = time.time()
+
+            # new thread for showing video
+            # TODO separate video thread running but not showing video
+            
+            if curr%fps == 0:
+                t_video = threading.Thread(target=cam_video_only, args=(cam,data, ))
+                t_video.start()
+
+            # generate filename
+            filename = ("img%d_%s.bmp" % (curr, str(datetime.datetime.now()).split('.')[0].replace(" ",'-').replace(":",'-')))
+            # save image
+            cv2.imwrite(image_saving_path+filename, data)
+
+            t3 = time.time()            
+
+            t3 = t3 - t2
+            t2 = t2 - t1
+            t1 = t1 - t0
+
+            print(str(int(t1*1000000)) + '  ' 
+                    + str(int(t2*1000000)) + '  '
+                    + str(int(t3*1000000)) + '  ' 
+                    )
+
+            curr += 1
+
+    except KeyboardInterrupt:
+        cam_close(cam)
+
+def cam_video_only(cam, data):
+    try:
+        print('video')
+        # resize the display
+        dim = (int(data.shape[1]/3), int(data.shape[0]/3))
+        resized = cv2.resize(data, dim, interpolation=cv2.INTER_AREA)
+        
+        cv2.imshow('Camera Live Feed', resized)
+        cv2.waitKey(10)
+            
+    except xiapi.Xi_error:
+        # When camera is not closed by this func, exception occurs
+        print('Done.')
+
 def main():
-    global expo
+    #global expo
 
     # Start the camera for adjusting exposure time
-    cam_exposure()
+    #cam_exposure()
 
     # Ready the camera for correct exposure time in milisec
     cam = cam_setup(expo)
 
     # Start live video feed and ready for photo taking
-    cam_save(cam, fps=vfps, fp=image_saving_path)
-    #cam_video(cam, 1, vfps=vfps, pfps=pfps, fp=image_saving_path)
+    #cam_save_video_one_thread(cam, fps=vfps, fp=image_saving_path)
+    cam_save_video_separate_threads(cam)
+    # TODO change cam_video to video only
 
 
 if __name__ == '__main__':
