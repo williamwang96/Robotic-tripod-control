@@ -53,9 +53,6 @@ def cam_live_video_original_resolution(cam):
     '''
     img = xiapi.Image()
     try:
-        print('\nStarting live transmission...')
-        print('\nPress CTRL+C to enter new exposure time or finish adjusting.\n')
-
         while True:
             #get data and pass them from camera to img
             cam.get_image(img)
@@ -84,12 +81,13 @@ def cam_adjust_exposure():
         while True:
             cam = cam_setup(expo)
 
+            print('\nPress CTRL+C to enter new exposure time or finish adjusting.\n')
             cam_live_video_original_resolution(cam)
 
-            expo_temp = input('Enter exposure time (in milisec)\nOr press enter to finish: \n')
+            expo_temp = input('\nEnter exposure time (in milisec)\nOr press enter to finish: \n')
 
             if not expo_temp.isnumeric():
-                if expo_temp == '':
+                if expo_temp == '':                    
                     break
                 else:
                     print('Numbers only')
@@ -97,14 +95,16 @@ def cam_adjust_exposure():
 
             expo = int(expo_temp)
 
+        print('Exposure time set.')
+
     except EOFError:
-        cam_close(cam)
+        pass
 
     except xiapi.Xi_error: 
         pass
 
     finally:
-        print('Camera Closed.')
+        print('\nDone.')
 
 def cam_setup(expo=10):
     '''
@@ -226,6 +226,34 @@ def cam_live_video_and_photo_save(cam, refrate=3, res=3, fp=image_saving_path):
     except xiapi.Xi_error: 
         pass
 
+def cam_adjust_white_balance(cam):
+    '''
+    This function guides you to set the camera's white balance manually.
+    '''
+    global expo
+    try:
+        print('\nFace the camera towards a white paper or surface.\n' +
+            'The camera will use it to set its white balance.\n' + 
+            'Press CTRL+C when you are ready.')
+
+        cam_live_video_original_resolution(cam)
+
+        cam_wb = cam_setup(expo)
+
+        cam_wb.set_param("manual_wb", 1)        
+
+    except KeyboardInterrupt:
+        pass
+
+    except xiapi.Xi_error: 
+        pass
+
+    finally:
+        print('White balance set.')
+
+    return cam_wb
+
+
 def main():
     global expo
 
@@ -233,7 +261,10 @@ def main():
     cam_adjust_exposure()
 
     # Ready the camera for correct exposure time in milisec
-    cam = cam_setup(expo)
+    cam = cam_setup(33)
+
+    # Adjusting the camera's white balance manually
+    cam = cam_adjust_white_balance(cam)
 
     # Start live video feed and ready for photo taking
     cam_live_video_and_photo_save(cam)

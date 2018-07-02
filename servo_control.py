@@ -39,6 +39,8 @@ def manual_tracking(servo):
     angle1,angle2 = 90,90 # 1 is horizontal angle, 2 is vertical angle
 
     while True:
+        t0 = time.time()
+        
         # boolean for determining whether coming to the end of the moving range      
         limit = True
         # boolean for determining whether the position of the robo tripod needs to change, i.e. send new cmd
