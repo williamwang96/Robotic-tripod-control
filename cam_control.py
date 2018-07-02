@@ -142,7 +142,8 @@ def cam_live_video_and_photo_save(cam, refrate=3, res=3, fp=image_saving_path):
     '''
     curr = 0
 
-    print('\nBegins live transmission...\nReady')
+    print('\nBegins live transmission...')
+    print('\nReady')
     print('Press R to start saving photos')
     print('Press P to pause')
     print('Press B to exit')
@@ -176,6 +177,7 @@ def cam_live_video_and_photo_save(cam, refrate=3, res=3, fp=image_saving_path):
                     print('Press B to exit')
 
             if k == ord('b'):
+                cam_close(cam)
                 break
 
             # get data from camera and ready for storing
@@ -238,6 +240,7 @@ def cam_adjust_white_balance(cam):
 
         cam_live_video_original_resolution(cam)
 
+        print('\nWhite balance set.')
         cam_wb = cam_setup(expo)
 
         cam_wb.set_param("manual_wb", 1)        
@@ -246,10 +249,7 @@ def cam_adjust_white_balance(cam):
         pass
 
     except xiapi.Xi_error: 
-        pass
-
-    finally:
-        print('White balance set.')
+        pass     
 
     return cam_wb
 
@@ -261,7 +261,7 @@ def main():
     cam_adjust_exposure()
 
     # Ready the camera for correct exposure time in milisec
-    cam = cam_setup(33)
+    cam = cam_setup(expo)
 
     # Adjusting the camera's white balance manually
     cam = cam_adjust_white_balance(cam)
