@@ -1,3 +1,0 @@
-This is a python library for interacting with the robo tripod.
-A camera used for tracking the kite is mounted on the tripod.
-The tripod will adjust its position based on the kite's position in the camera image to keep it in the center.
